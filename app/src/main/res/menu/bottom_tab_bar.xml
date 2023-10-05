@@ -3,7 +3,7 @@
     <item android:id="@+id/searchPage"
         android:title="@string/search"
         android:icon="@drawable/search"/>
-    <item android:id="@+id/gameCatFragment"
+    <item android:id="@+id/trendingPage"
         android:title="@string/trending"
         android:icon="@drawable/trending"/>
 </menu>

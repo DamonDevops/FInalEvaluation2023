@@ -7,6 +7,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Headers
+import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
@@ -19,6 +20,23 @@ interface MoviesService {
         @Query("query") query :String,
         @Query("api_key") key :String,
     ) : Response<MoviesResponse>
+}
+
+interface TrendingService{
+    @Headers("Content-type: application/json")
+    @GET("trending/movie/day")
+    suspend fun trendingMovies(
+        @Query("api_key") key :String
+    ) :Response<MoviesResponse>
+}
+
+interface SimilarService{
+    @Headers("Content-type: application/json")
+    @GET("movie/{movieId}/similar")
+    suspend fun similarMovies(
+        @Path("movieId") id :Int,
+        @Query("api_key") key :String
+    ) :Response<MoviesResponse>
 }
 
 class MoviesServiceImpl{
@@ -37,4 +55,6 @@ class MoviesServiceImpl{
     }
 
     suspend fun searchedMovies(query :String) : Response<MoviesResponse> = getRetrofit().create(MoviesService::class.java).searchedMovies(query, API_KEY)
+    suspend fun trendingMovies() :Response<MoviesResponse> = getRetrofit().create(TrendingService::class.java).trendingMovies(API_KEY)
+    suspend fun similarMovies(movieId :Int) :Response<MoviesResponse> = getRetrofit().create(SimilarService::class.java).similarMovies(movieId, API_KEY)
 }

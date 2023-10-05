@@ -5,56 +5,81 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import be.technifutur.trendingmovies2023.R
+import androidx.core.view.isVisible
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.GridLayoutManager
+import be.technifutur.trendingmovies2023.databinding.FragmentTrendingPageBinding
+import be.technifutur.trendingmovies2023.network.model.MovieResponse
+import be.technifutur.trendingmovies2023.network.model.MoviesResponse
+import be.technifutur.trendingmovies2023.network.service.MoviesServiceImpl
+import be.technifutur.trendingmovies2023.recycler.trending.TrendingViewAdapter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [TrendingPage.newInstance] factory method to
- * create an instance of this fragment.
- */
-class TrendingPage : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
-
+class TrendingPage : Fragment(), TrendingViewAdapter.OnSelectTrending {
+    private lateinit var binding :FragmentTrendingPageBinding
+    private lateinit var model : MoviesResponse
+    private val moviesService by lazy { MoviesServiceImpl() }
+    private var job : Job? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_trending_page, container, false)
+    ): View {
+        binding = FragmentTrendingPageBinding.inflate(inflater, container, false)
+        return binding.root
     }
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        showNothingPage(false)
+        getTrendingAsync()
+    }
+    private fun setupView(){
+        val trendingRecycler = binding.trendingRecyclerView
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment TrendingPage.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            TrendingPage().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+        trendingRecycler.layoutManager = GridLayoutManager(requireContext(), 3)
+        trendingRecycler.adapter = TrendingViewAdapter(model, this)
+    }
+    private fun showNothingPage(check :Boolean){
+        binding.nothingLayout.isVisible = check
+    }
+    private fun getTrendingAsync(){
+        job = CoroutineScope(Dispatchers.IO).launch {
+            val response = moviesService.trendingMovies()
+            withContext(Dispatchers.Main) {
+                try {
+                    if (response.isSuccessful) {
+                        model = MoviesResponse(mutableListOf())
+                        response.body()?.moviesList?.forEach {
+                            model.moviesList.add(it)
+                        }
+                        if(model.moviesList.isNotEmpty()){
+                            setupView()
+                            showNothingPage(false)
+                        }
+                        else{
+                            showNothingPage(true)
+                        }
+                    }else{
+                        showNothingPage(true)
+                    }
+                } catch (e: HttpException) {
+                    print(e)
+                } catch (e: Throwable) {
+                    print(e)
                 }
             }
+        }
+    }
+    override fun onTrendClick(movie :MovieResponse) {
+        val destination = TrendingPageDirections.actionTrendingPageToDetailsPage(movie)
+        findNavController().navigate(destination)
     }
 }

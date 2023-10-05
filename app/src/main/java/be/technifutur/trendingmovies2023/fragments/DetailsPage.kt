@@ -5,56 +5,90 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import be.technifutur.trendingmovies2023.R
+import be.technifutur.trendingmovies2023.databinding.FragmentDetailsPageBinding
+import be.technifutur.trendingmovies2023.network.model.MoviesResponse
+import be.technifutur.trendingmovies2023.network.service.MoviesServiceImpl
+import be.technifutur.trendingmovies2023.recycler.similar.SimilarViewAdapter
+import com.squareup.picasso.Picasso
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [DetailsPage.newInstance] factory method to
- * create an instance of this fragment.
- */
 class DetailsPage : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
+    private lateinit var binding :FragmentDetailsPageBinding
+    val args :DetailsPageArgs by navArgs()
+    private val imageBuilderUrl = "https://image.tmdb.org/t/p/w500/"
+    private lateinit var model :MoviesResponse
+    private val moviesService by lazy { MoviesServiceImpl() }
+    private var job : Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_details_page, container, false)
+    ): View {
+        binding = FragmentDetailsPageBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment DetailsPage.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            DetailsPage().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val movie = args.movie
+
+        getSimilarListAsync()
+        Picasso.get()
+            .load(imageBuilderUrl + movie.backdropPath)
+            .placeholder(R.drawable.placeholder)
+            .into(binding.movieBanner)
+        Picasso.get()
+            .load(imageBuilderUrl + movie.posterPath)
+            .placeholder(R.drawable.placeholder)
+            .into(binding.moviePoster)
+        binding.rating.text = String.format("%.1f", movie.voteAverage)
+        binding.movieTitle.text = movie.originalTitle
+        binding.synopsisContent.text = movie.synopsis
+
+        binding.arrowButton.setOnClickListener {
+            findNavController().popBackStack()
+        }
+    }
+
+    private fun setupView(){
+        val similarRecycler = binding.similarrecyclerView
+
+        similarRecycler.layoutManager = LinearLayoutManager(requireContext(), RecyclerView.HORIZONTAL , false)
+        similarRecycler.adapter = SimilarViewAdapter(model)
+    }
+
+    private fun getSimilarListAsync(){
+        job = CoroutineScope(Dispatchers.IO).launch {
+            val response = moviesService.similarMovies(args.movie.id)
+            withContext(Dispatchers.Main) {
+                try {
+                    if (response.isSuccessful) {
+                        model = MoviesResponse(mutableListOf())
+                        response.body()?.moviesList?.forEach {
+                            model.moviesList.add(it)
+                        }
+                        setupView()
+                    }
+                } catch (e: HttpException) {
+                    print(e)
+                } catch (e: Throwable) {
+                    print(e)
                 }
             }
+        }
     }
 }
