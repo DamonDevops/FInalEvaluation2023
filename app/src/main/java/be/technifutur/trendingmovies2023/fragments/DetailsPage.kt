@@ -1,6 +1,7 @@
 package be.technifutur.trendingmovies2023.fragments
 
 import android.os.Bundle
+import android.text.method.ScrollingMovementMethod
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -58,6 +59,7 @@ class DetailsPage : Fragment() {
         binding.rating.text = String.format("%.1f", movie.voteAverage)
         binding.movieTitle.text = movie.originalTitle
         binding.synopsisContent.text = movie.synopsis
+        binding.synopsisContent.movementMethod = ScrollingMovementMethod()
 
         binding.arrowButton.setOnClickListener {
             findNavController().popBackStack()
